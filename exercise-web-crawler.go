@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 )
 
 type Fetcher interface {
@@ -13,28 +14,43 @@ type Fetcher interface {
 // Crawl uses fetcher to recursively crawl
 // pages starting with url, to a maximum of depth.
 func Crawl(url string, depth int, fetcher Fetcher) {
-	var crawl func(url string, depth int, fetcher Fetcher, fetched map[string]string)
-	crawl = func(url string, depth int, fetcher Fetcher, fetched map[string]string) {
+	type memo struct {
+		fetched map[string]string
+		mux     sync.Mutex
+	}
+	m := memo{fetched: make(map[string]string)}
+	var wg sync.WaitGroup
+
+	var crawl func(url string, depth int, fetcher Fetcher)
+	crawl = func(url string, depth int, fetcher Fetcher) {
+		defer wg.Done()
 		if depth <= 0 {
 			return
 		}
 		body, urls, err := fetcher.Fetch(url)
-		fetched[url] = body
+		m.mux.Lock()
+		m.fetched[url] = body
+		m.mux.Unlock()
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 		fmt.Printf("found: %s %q\n", url, body)
 		for _, u := range urls {
-			_, ok := fetched[u]
+			m.mux.Lock()
+			_, ok := m.fetched[u]
+			m.mux.Unlock()
 			if !ok {
-				crawl(u, depth-1, fetcher, fetched)
+				wg.Add(1)
+				go crawl(u, depth-1, fetcher)
 			}
 		}
 		return
 	}
-	fetched := make(map[string]string)
-	crawl(url, depth, fetcher, fetched)
+
+	wg.Add(1)
+	go crawl(url, depth, fetcher)
+	wg.Wait()
 }
 
 func main() {

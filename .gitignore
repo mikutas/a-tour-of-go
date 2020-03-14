@@ -20,3 +20,15 @@
 /Godeps/
 
 # End of https://www.gitignore.io/api/go
+
+exercise-equivalent-binary-trees
+exercise-errors
+exercise-fibonacci-closure
+exercise-images
+exercise-loops-and-functions
+exercise-maps
+exercise-reader
+exercise-rot-reader
+exercise-slices
+exercise-stringer
+exercise-web-crawler
